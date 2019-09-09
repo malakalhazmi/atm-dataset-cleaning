@@ -1,0 +1,94 @@
+import pandas as pd
+import re
+
+atm_original = pd.read_excel(r' HERE THE PATH TO THE DATASET GOES ', sep = '\t')
+atm = atm_original.copy()
+
+class Filter():
+    
+    def clean_x_y_coordinates(self, coordinate):
+        '''
+     (5): Both 'Y GIS Coordinates' & 'X GIS Coordinates' are full of things that should be cleand out 
+          before using them (i.e. render them as markers on goolge map)
+        
+        '''
+  # If coordinate is String means there is something that should be cleand 
+        if isinstance(coordinate,str):
+            temp_list = list(coordinate)
+        
+        # 1:'Militaryzone' is a value that means (this location is confidential)
+            if coordinate == 'Militaryzone':
+                return '0'
+            
+        # 2:',' is meaningless
+            elif ',' in coordinate:
+                return coordinate.replace(',','')
+            
+        # 3:'°' it means when it comes in the end of coordinate dd or 'Decimal Degrees'
+            elif coordinate[-1] == '°' :
+                return coordinate.replace('°','')
+            
+        # 4:when 'E' or 'N' comes in the biggingn of coordinate with no other symbols..
+        #   we can't convert dms 'Degrees,Minutes,Seconds' to dd
+            elif (coordinate[0] == 'E' or coordinate[0] == 'N'):    
+                return '0'
+            
+        # 5:when 'E' or 'N' comes in the end of coordinate without ° & ' symbols..
+        #   we can't convert dms 'Degrees,Minutes,Seconds' to dd
+        #   just get raid of this extra N or E
+            elif  ('°' and "'" not in coordinate) and (coordinate[-1] == 'E' or coordinate[-1] == 'N'):
+                if 'N' in coordinate:
+                    return coordinate.replace('N','')
+                elif 'E' in coordinate:
+                    return coordinate.replace('E','')
+                
+        # 6:when 'E' or 'N' comes in the end of coordinate with ° & ' symbols..
+        #   we can convert dms 'Degrees,Minutes,Seconds' to dd
+            elif  ('°' and "'" and 'N' in coordinate) or ('°' and "'" and 'E' in coordinate):
+                print(coordinate)
+                degrees, minutes, direction = re.split('[°\']+', coordinate)
+                dd = float(degrees) + float(minutes)/60 ;
+                return dd 
+            
+        # 7:when 'E' or 'N' comes in the end of coordinate with ° & ' & " symbols..
+        #   we can convert dms 'Degrees,Minutes,Seconds' to dd
+            elif  ('°' and "\'" and '\"' and 'N' in coordinate) or ('°' and "\'" and '\"' and 'E' in coordinate):
+                degrees, minutes, seconds, direction = re.split('[°\'"]+', coordinate)
+                dd = float(degrees) + float(minutes)/60 + float(seconds)/(60*60);
+                return dd
+            
+        # 7: change the . symbol if it was not in its correct place
+            elif  '.' in coordinate:
+                for indx , c in enumerate(temp_list):
+                    if c == '.' and indx != 2:
+                        temp_list.pop(indx)
+                        if temp_list[2] != '.':
+                            temp_list.insert(2,c)
+                return ''.join(temp_list)
+            
+            elif  '.' not in coordinate:
+                temp_list.insert(2,'.')
+                return ''.join(temp_list)
+            
+  # If coordinate is not String means it is a clean float 
+        else:
+            return coordinate
+            
+            
+dataset_filter = Filter() 
+
+
+#in (1) and (2) Cleanings below.. we are using For Loop wich is not the optimal option! apply() function is the best bit in here. However, we have some errors using this function .. So, we deside to use For Loop instead as a temprory solution to clean our data.
+
+# (1):'Y GIS Coordinates' Column Cleaning     
+for n in range(0,atm.shape[0]):
+    atm['Y GIS Coordinates'].iloc[n] = dataset_filter.clean_x_y_coordinates(atm['Y GIS Coordinates'].iloc[n])
+ 
+ # (2):'X GIS Coordinates' Column Cleaning    
+for n in range(0,atm.shape[0]):
+    atm['X GIS Coordinates'].iloc[n] = dataset_filter.clean_x_y_coordinates(atm['X GIS Coordinates'].iloc[n])
+    
+    
+#Now, let's test the dataset
+atm
+  
